@@ -1,14 +1,15 @@
 from flask import Flask, render_template, Response
 import cv2
 import time
-
+import json
 import numpy as np
 
 
-
-source = "rtsp://smartinside:skku2400_@192.168.50.161:554/stream_ch00_1"
+with open("passwd.json","r") as passwd:
+    pwd = json.load(passwd)
+    
+source = pwd["source"] 
 cap = cv2.VideoCapture(source)
-
 
 app = Flask(__name__)
 def gen_frames():
