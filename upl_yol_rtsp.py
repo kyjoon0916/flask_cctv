@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 from flask import Flask, render_template, Response
 import os
+import tensorflow
 import json
 import cv2
 import pytz 
@@ -21,19 +22,12 @@ app = Flask(__name__)
 
 # from pybo.models import Photos2
 
-    
-
-
-
 def detect():
     with open("passwd.json","r") as passwd:
         pwd = json.load(passwd)
-    #parser.add_argument('--weights', nargs='+', type=str, default='yolov5s.pt', help='model.pt path(s)')
     weights ="./yolov5s.pt"
-    #source = "rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov"
-    # source = "rtsp://smartinside:skku2400_@192.168.50.161:554/stream_ch00_1"  # file/folder, 0 for webcam
     source = pwd["source"]
-    img_size = 640 #', type=int, default=640, help='inference size (pixels)')
+    img_size = 160 #', type=int, default=640, help='inference size (pixels)')
     conf_thres = 0.4 #', type=float, default=0.25, help='object confidence threshold')
     iou_thres = 0.45 #', type=float, default=0.45, help='IOU threshold for NMS')
     device = ''
@@ -73,8 +67,6 @@ def detect():
     # Run inference
     if device.type != 'cpu':
         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
-    #0 = time.time() #start time
-    #t_start = time.localtime()
     for path, img, im0s, vid_cap in dataset:
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -84,14 +76,9 @@ def detect():
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
         # Inference
-        #t1 = time_synchronized()
         pred = model(img, augment=augment)[0]
         # Apply NMS
         pred = non_max_suppression(pred, conf_thres, iou_thres, classes=classes, agnostic=agnostic_nms)
-        #t2 = time_synchronized()
-        # Apply Classifier
-#        if classify:
-#            pred = apply_classifier(pred, modelc, img, im0s)
         # Process detections
         for i, det in enumerate(pred):  # detections per image
             global im0
@@ -111,45 +98,7 @@ def detect():
                 for c in det[:, -1].unique():
                     n = (det[:, -1] == c).sum()  # detections per class
                     s = s + f'{names[int(c)]}, {n} '  # add to string / 각 class의 이름과 n값 출                    
-                    # #display object counting
-                    # text = "Objects"
-                    # text1 = ":{} ".format(s)
-                    # im0 = cv2.putText(im0, text, (0, 70), cv2.FONT_HERSHEY_SIMPLEX,1,[255,144,30],3)
-                    # im0 = cv2.putText(im0, text1, (-210, 110), cv2.FONT_HERSHEY_SIMPLEX,1,[255,144,30],3)
-
-                    # smk_num,danger_num,nohelmet_num,nomask_num,safe_num=0,0,0,0,0
-                    # for i in range(0,len(det)):
-                    #     if(det[i][-1]==0): #smoke
-                    #         smk_num+=1
-                    #     if(det[i][-1]==1): #danger
-                    #         danger_num+=1
-                    #     if(det[i][-1]==2): #no-helmet
-                    #         nohelmet_num+=1
-                    #     if(det[i][-1]==3): #no-mask
-                    #         nomask_num+=1
-                    #     if(det[i][-1]==4): #safe
-                    #         safe_num+=1
-        
-                    # if smk_num==0 and danger_num==0:
-                    #     if nohelmet_num>=3 or nomask_num>=3 :
-                    #         status = "danger"
-                    #     if nohelmet_num==1 or nohelmet_num==2 : # Warning
-                    #         status = "warning"
-                    #     if nomask_num==1 or nomask_num==2 : # Warning
-                    #         status = "warning"
-                    #     if nohelmet_num==0 and nomask_num==0 and safe_num>=0: # Safe
-                    #         status = "safe"
-                    # elif smk_num > 0 or danger_num > 0 :
-                    #         status = "danger"
-                    # if status == "danger":
-                    #     text2 = "Status: Danger !"
-                    #     im0 = cv2.putText(im0, text2, (750, 50), cv2.FONT_HERSHEY_SIMPLEX,2,[0,0,255],4)
-                    #     text2 = "Status: Warning !"
-                    #     im0 = cv2.putText(im0, text2, (750, 50), cv2.FONT_HERSHEY_SIMPLEX,2,[0,255,255],4)
-                    # if status == "safe":
-                    #     text2 = "Status: Safe"
-                    #     im0 = cv2.putText(im0, text2, (750, 50), cv2.FONT_HERSHEY_SIMPLEX,2,[0, 204, 0],4)                         
-
+                   
                     # Write results
                     for *xyxy, conf, cls in reversed(det):
 
@@ -158,7 +107,6 @@ def detect():
                             plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
                 # Print time (inference + NMS)
                 # print removed 
-                    
                         _, jpeg = cv2.imencode('.jpg', im0)
                         frame = jpeg.tobytes()
                         #print(cv2.cuda.getCudaEnabledDeviceCount())
@@ -172,16 +120,6 @@ def index():
     return render_template('index.html')
     
 if __name__ == '__main__':
-
-    # import sys
-    # from os import path
-    # print(path.dirname( path.dirname( path.abspath(__file__) ) ))
-    # sys.path.append(path.dirname( path.dirname( path.abspath(__file__) ) ))
-    # from models.experimental import attempt_load
-    # from utils.datasets import LoadStreams, LoadImages
-    # from utils.general import check_img_size, check_requirements, check_imshow, non_max_suppression, apply_classifier, scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path
-    # from utils.plots import plot_one_box
-    # from utils.torch_utils import select_device, load_classifier, time_synchronized
     app.run(host='0.0.0.0', debug=True)
     
     
